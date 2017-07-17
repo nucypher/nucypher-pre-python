@@ -61,3 +61,18 @@ def test_encrypt_decrypt():
     assert type(msg2) is bytes
     assert msg2 == msg
     assert pre.decrypt(priv, pre.encrypt(pub, msg.decode())) == msg
+
+
+def test_reencrypt():
+    pre = bbs98.PRE()
+    alice_priv = pre.gen_priv()
+    alice_pub = pre.priv2pub(alice_priv)
+    bob_priv = pre.gen_priv()
+    bob_pub = pre.priv2pub(bob_priv)
+
+    re = pre.rekey(alice_priv, bob_priv)
+
+    emsg = pre.encrypt(alice_pub, msg)
+    emsg2 = pre.reencrypt(re, emsg)
+
+    assert pre.decrypt(bob_pub, emsg2) == emsg

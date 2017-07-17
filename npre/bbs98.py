@@ -93,7 +93,7 @@ class PRE(object):
         msg = ec.decode(self.ecgroup, m, False)
         return unpad(msg)
 
-    def rekey(self, priv, pub, dtype='ec'):
+    def rekey(self, priv1, priv2, dtype='ec'):
         pass
 
     def reencrypt(self, rk, msg):
