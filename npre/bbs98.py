@@ -1,3 +1,22 @@
+'''
+BBS Proxy Re-Encryption
+| From: Blaze, M., Bleumer, G., & Strauss, M. (1998). Divertible protocols and atomic proxy cryptography.
+| Published in: Advances in Cryptology-EUROCRYPT'98 (pp. 127-144). Springer Berlin Heidelberg.
+| Available from: http://link.springer.com/chapter/10.1007/BFb0054122
+* type:           proxy encryption
+* properties:     CPA-secure, bidirectional, multihop, not collusion-resistant, interactive, transitive
+* setting:        DDH-hard EC groups of prime order (F_p) or Integer Groups
+* assumption:     DDH
+
+This is private-private reencryption, so reencrypting to a public key requires creating an ephemeral random key
+
+Inspired by Charm's bbs98
+D. Nuñez (dnunez@lcc.uma.es); 04/2016
+
+Implemented by:
+M. Egorov (michael@nucypher.com); 06/2017
+'''
+
 import npre.elliptic_curve as ec
 from npre import curves
 
@@ -50,3 +69,15 @@ class PRE(object):
 
     def save_key(self, key):
         return ec.serialize(key)
+
+    def encrypt(self, pub, msg):
+        pass
+
+    def decrypt(self, priv, msg):
+        pass
+
+    def rekey(self, priv, pub, dtype='ec'):
+        pass
+
+    def reencrypt(self, rk, msg):
+        pass

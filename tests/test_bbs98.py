@@ -1,5 +1,7 @@
 from npre import bbs98
 
+msg = b'hello world!'
+
 
 def test_serde():
     pre = bbs98.PRE()
@@ -46,3 +48,16 @@ def test_keyops():
     pre2 = bbs98.PRE.deserialize(pre.serialize())
     pub3 = pre2.priv2pub(priv)
     assert pub3 == pub
+
+
+def test_encrypt_decrypt():
+    pre = bbs98.PRE()
+    priv = pre.gen_priv()
+    pub = pre.priv2pub(priv)
+
+    emsg = pre.encrypt(pub, msg)
+    assert type(emsg) is bytes
+    msg2 = pre.decrypt(priv, emsg)
+    assert type(msg2) is bytes
+    assert msg2 == msg
+    assert pre.encrypt(pub, msg.encode()) == emsg
