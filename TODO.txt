@@ -1,0 +1,8 @@
+[ ] Docstrings
+[ ] Test on Mac and Windows
+[ ] Wrap block ciphers: AES from pycryptodome and/or Salsa20 (from nacl or embedded libsodium)
+[ ] Use Python real bytes instead of Base64-encoded strings for serialized keys
+[ ] Add integration with Bernstein's curve Ed25519
+[ ] Add more standard EC/ElGamal scheme (has browser ready implementations etc - see Crypho)
+[ ] Add split-key version of AFGH
+.. more to come
