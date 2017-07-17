@@ -85,16 +85,27 @@ class PRE(object):
         c2 = (self.g ** r) * m
         return msgpack.dumps([ec.serialize(c1), ec.serialize(c2)])
 
-    def decrypt(self, priv, emsg):
+    def decrypt(self, priv, emsg, padding=True):
         if type(emsg) is str:
             emsg = emsg.encode()
         c1, c2 = [self.load_key(x) for x in msgpack.loads(emsg)]
         m = c2 / (c1 ** (~self.load_key(priv)))
         msg = ec.decode(self.ecgroup, m, False)
-        return unpad(msg)
+        if padding:
+            return unpad(msg)
+        else:
+            return msg
 
-    def rekey(self, priv1, priv2, dtype='ec'):
-        pass
+    def rekey(self, priv1, priv2, dtype=None):
+        if dtype is None:
+            dtype = type(priv1)
+        priv1 = self.load_key(priv1)
+        priv2 = self.load_key(priv2)
+        rk = priv2 * (~priv1)
+        if dtype in (bytes, 'bytes'):
+            return self.save_key(rk)
+        else:
+            return rk
 
     def reencrypt(self, rk, msg):
         pass

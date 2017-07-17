@@ -70,9 +70,15 @@ def test_reencrypt():
     bob_priv = pre.gen_priv()
     bob_pub = pre.priv2pub(bob_priv)
 
-    re = pre.rekey(alice_priv, bob_priv)
+    re1 = pre.rekey(alice_priv, bob_priv)
+    re2 = pre.rekey(alice_priv, bob_priv, dtype=bytes)
+    assert type(re1) != type(re2)
+    assert type(re2) is bytes
+    assert re1 == pre.load_key(re2)
 
     emsg = pre.encrypt(alice_pub, msg)
-    emsg2 = pre.reencrypt(re, emsg)
+    emsg2 = pre.reencrypt(re1, emsg)
+    emsg3 = pre.reencrypt(re2, emsg)
 
     assert pre.decrypt(bob_pub, emsg2) == emsg
+    assert pre.decrypt(bob_pub, emsg3) == emsg
