@@ -79,22 +79,30 @@ class PRE(object):
             msg = msg.encode()
         if padding:
             msg = pad(self.bitsize, msg)
-        m = ec.encode(self.ecgroup, msg, False)
+            chunks = [
+                    msg[i * self.bitsize: i * self.bitsize + self.bitsize]
+                    for i in range(len(msg) // self.bitsize)]
+        else:
+            chunks = [msg]
         r = ec.random(self.ecgroup, ec.ZR)
         c1 = self.load_key(pub) ** r
-        c2 = (self.g ** r) * m
-        return msgpack.dumps([ec.serialize(c1), ec.serialize(c2)])
+        c2 = [(self.g ** r) * ec.encode(self.ecgroup, m, False) for m in chunks]
+        c2 = map(ec.serialize, c2)
+        return msgpack.dumps([ec.serialize(c1)] + list(c2))
 
     def decrypt(self, priv, emsg, padding=True):
         if type(emsg) is str:
             emsg = emsg.encode()
-        c1, c2 = [self.load_key(x) for x in msgpack.loads(emsg)]
-        m = c2 / (c1 ** (~self.load_key(priv)))
-        msg = ec.decode(self.ecgroup, m, False)
+        emsg = [self.load_key(m) for m in msgpack.loads(emsg)]
+        c1 = emsg[0]
+        c2 = emsg[1:]
+        p = c1 ** (~self.load_key(priv))
+        m = [c / p for c in c2]
+        msg = [ec.decode(self.ecgroup, m_i, False) for m_i in m]
         if padding:
-            return unpad(msg)
+            return b''.join(msg[:-1] + [unpad(msg[-1])])
         else:
-            return msg
+            return msg[0]
 
     def rekey(self, priv1, priv2, dtype=None):
         if dtype is None:
@@ -111,6 +119,7 @@ class PRE(object):
         if type(emsg) is str:
             emsg = emsg.encode()
         rk = self.load_key(rk)
-        c1, c2 = [self.load_key(x) for x in msgpack.loads(emsg)]
+        emsg = msgpack.loads(emsg)
+        c1 = self.load_key(emsg[0])
         c1 = c1 ** rk
-        return msgpack.dumps([ec.serialize(c1), ec.serialize(c2)])
+        return msgpack.dumps([ec.serialize(c1)] + emsg[1:])

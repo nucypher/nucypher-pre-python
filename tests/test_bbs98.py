@@ -1,6 +1,9 @@
 from npre import bbs98
 
 msg = b'Hello world'
+long_msg = b"""Surveillance threatens individual rights - including to privacy and to freedom of expression and association -
+ and inhibits the free functioning of a vibrant civil society"""
+msg28 = b'a' * 10 + b'b' * 10 + b'c' * 8
 
 
 def test_serde():
@@ -75,9 +78,11 @@ def test_reencrypt():
     assert type(re2) is bytes
     assert re1 == pre.load_key(re2)
 
-    emsg = pre.encrypt(alice_pub, msg)
-    emsg2 = pre.reencrypt(re1, emsg)
-    emsg3 = pre.reencrypt(re2, emsg)
+    for m in (msg, long_msg, msg28, b''):
+        emsg = pre.encrypt(alice_pub, m)
+        emsg2 = pre.reencrypt(re1, emsg)
+        emsg3 = pre.reencrypt(re2, emsg)
 
-    assert pre.decrypt(bob_priv, emsg2) == msg
-    assert pre.decrypt(bob_priv, emsg3) == msg
+        assert pre.decrypt(alice_priv, emsg) == m
+        assert pre.decrypt(bob_priv, emsg2) == m
+        assert pre.decrypt(bob_priv, emsg3) == m
