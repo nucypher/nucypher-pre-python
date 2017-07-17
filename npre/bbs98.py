@@ -107,5 +107,10 @@ class PRE(object):
         else:
             return rk
 
-    def reencrypt(self, rk, msg):
-        pass
+    def reencrypt(self, rk, emsg):
+        if type(emsg) is str:
+            emsg = emsg.encode()
+        rk = self.load_key(rk)
+        c1, c2 = [self.load_key(x) for x in msgpack.loads(emsg)]
+        c1 = c1 ** rk
+        return msgpack.dumps([ec.serialize(c1), ec.serialize(c2)])

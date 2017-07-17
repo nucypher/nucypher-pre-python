@@ -68,7 +68,6 @@ def test_reencrypt():
     alice_priv = pre.gen_priv()
     alice_pub = pre.priv2pub(alice_priv)
     bob_priv = pre.gen_priv()
-    bob_pub = pre.priv2pub(bob_priv)
 
     re1 = pre.rekey(alice_priv, bob_priv)
     re2 = pre.rekey(alice_priv, bob_priv, dtype=bytes)
@@ -80,5 +79,5 @@ def test_reencrypt():
     emsg2 = pre.reencrypt(re1, emsg)
     emsg3 = pre.reencrypt(re2, emsg)
 
-    assert pre.decrypt(bob_pub, emsg2) == emsg
-    assert pre.decrypt(bob_pub, emsg3) == emsg
+    assert pre.decrypt(bob_priv, emsg2) == msg
+    assert pre.decrypt(bob_priv, emsg3) == msg
