@@ -19,6 +19,8 @@ M. Egorov (michael@nucypher.com); 06/2017
 
 import npre.elliptic_curve as ec
 from npre import curves
+from npre.util import pad, unpad
+import msgpack
 
 
 class PRE(object):
@@ -29,18 +31,17 @@ class PRE(object):
             self.g = ec.random(self.ecgroup, ec.G)
         else:
             self.g = ec.deserialize(self.ecgroup, g)
+        self.bitsize = ec.bitsize(self.ecgroup)
 
     def to_dict(self):
         return {'g': ec.serialize(self.g),
                 'curve': self.curve}
 
     def serialize(self):
-        import msgpack
         return msgpack.dumps(self.to_dict())
 
     @classmethod
     def deserialize(cls, s):
-        import msgpack
         d = msgpack.loads(s)
         return cls(**{x.decode(): d[x] for x in d})
 
@@ -65,16 +66,32 @@ class PRE(object):
             return pub
 
     def load_key(self, key):
-        return ec.deserialize(self.ecgroup, key)
+        if type(key) is bytes:
+            return ec.deserialize(self.ecgroup, key)
+        else:
+            return key
 
     def save_key(self, key):
         return ec.serialize(key)
 
-    def encrypt(self, pub, msg):
-        pass
+    def encrypt(self, pub, msg, padding=True):
+        if type(msg) is str:
+            msg = msg.encode()
+        if padding:
+            msg = pad(self.bitsize, msg)
+        m = ec.encode(self.ecgroup, msg, False)
+        r = ec.random(self.ecgroup, ec.ZR)
+        c1 = self.load_key(pub) ** r
+        c2 = (self.g ** r) * m
+        return msgpack.dumps([ec.serialize(c1), ec.serialize(c2)])
 
-    def decrypt(self, priv, msg):
-        pass
+    def decrypt(self, priv, emsg):
+        if type(emsg) is str:
+            emsg = emsg.encode()
+        c1, c2 = [self.load_key(x) for x in msgpack.loads(emsg)]
+        m = c2 / (c1 ** (~self.load_key(priv)))
+        msg = ec.decode(self.ecgroup, m, False)
+        return unpad(msg)
 
     def rekey(self, priv, pub, dtype='ec'):
         pass

@@ -1,6 +1,6 @@
 from npre import bbs98
 
-msg = b'hello world!'
+msg = b'Hello world'
 
 
 def test_serde():
@@ -60,4 +60,4 @@ def test_encrypt_decrypt():
     msg2 = pre.decrypt(priv, emsg)
     assert type(msg2) is bytes
     assert msg2 == msg
-    assert pre.encrypt(pub, msg.encode()) == emsg
+    assert pre.decrypt(priv, pre.encrypt(pub, msg.decode())) == msg
