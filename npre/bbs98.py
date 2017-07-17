@@ -24,3 +24,29 @@ class PRE(object):
         import msgpack
         d = msgpack.loads(s)
         return cls(**{x.decode(): d[x] for x in d})
+
+    def gen_priv(self, dtype='ec'):
+        priv = ec.random(self.ecgroup, ec.ZR)
+        if dtype in ('bytes', bytes):
+            return ec.serialize(priv)
+        else:
+            return priv
+
+    def priv2pub(self, priv):
+        dtype = 'ec'
+        if type(priv) is str:
+            priv = priv.encode()
+        if type(priv) is bytes:
+            dtype = bytes
+            priv = ec.deserialize(self.ecgroup, priv)
+        pub = self.g ** priv
+        if dtype is bytes:
+            return ec.serialize(pub)
+        else:
+            return pub
+
+    def load_key(self, key):
+        return ec.deserialize(self.ecgroup, key)
+
+    def save_key(self, key):
+        return ec.serialize(key)
