@@ -86,14 +86,3 @@ def test_reencrypt():
         assert pre.decrypt(alice_priv, emsg) == m
         assert pre.decrypt(bob_priv, emsg2) == m
         assert pre.decrypt(bob_priv, emsg3) == m
-
-
-def test_private_to_public_with_unicode():
-    pre = bbs98.PRE()
-    sk_alice = u'a' * 32
-    pk_alice = pre.priv2pub(sk_alice)
-
-    cleartext = b"two empty halves of coconut"
-    cyphertext_for_alice = pre.encrypt(pk_alice, cleartext)
-
-    assert pre.decrypt(sk_alice.encode(), cyphertext_for_alice) == cleartext

@@ -21,6 +21,7 @@ import npre.elliptic_curve as ec
 from npre import curves
 from npre.util import pad, unpad
 import msgpack
+from typing import Union
 
 
 class PRE(object):
@@ -52,17 +53,21 @@ class PRE(object):
         else:
             return priv
 
-    def priv2pub(self, priv):
-        dtype = 'ec'
-        if type(priv) is str:
-            priv = priv.encode()
+    def priv2pub(self, priv: Union[bytes, 'elliptic_curve.Element']):
+        """
+        Takes priv, a secret bytes or elliptic_curve.Element object to be used as a private key.
+        Derives a matching public key and returns it.
+
+        Returns a public key matching the type of priv.
+        """
         if type(priv) is bytes:
-            dtype = bytes
+            # If priv is a bytes object, we need to "deserialize" it to an Element first,
+            # then raise g to its power, then "reserialize" it to bytes.
             priv = ec.deserialize(self.ecgroup, priv)
-        pub = self.g ** priv
-        if dtype is bytes:
+            pub = self.g ** priv
             return ec.serialize(pub)
         else:
+            pub = self.g ** priv
             return pub
 
     def load_key(self, key):
