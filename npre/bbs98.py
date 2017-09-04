@@ -26,7 +26,7 @@ from typing import Union
 
 class PRE(object):
     def __init__(self, curve=curves.secp256k1, g=None):
-        self.curve = curves.secp256k1
+        self.curve = curve
         self.ecgroup = ec.elliptic_curve(nid=self.curve)
         if g is None:
             self.g = ec.random(self.ecgroup, ec.G)
