@@ -6,18 +6,12 @@ long_msg = b"""Surveillance threatens individual rights - including to privacy a
 msg28 = b'a' * 10 + b'b' * 10 + b'c' * 8
 
 
-def test_serde():
+def test_two_instances():
     pre = bbs98.PRE()
-    pre1 = bbs98.PRE(**pre.to_dict())
+    pre1 = bbs98.PRE()
 
     assert pre.g == pre1.g
     assert pre.curve == pre1.curve
-
-    s = pre.serialize()
-    pre2 = bbs98.PRE.deserialize(s)
-
-    assert pre.g == pre2.g
-    assert pre.curve == pre2.curve
 
 
 def test_keyops():
@@ -48,7 +42,7 @@ def test_keyops():
     assert pub != pre.save_key(pub2)
 
     # Check that creating a new PRE object with same params gives the same key
-    pre2 = bbs98.PRE.deserialize(pre.serialize())
+    pre2 = bbs98.PRE()
     pub3 = pre2.priv2pub(priv)
     assert pub3 == pub
 

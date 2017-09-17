@@ -25,26 +25,11 @@ from typing import Union
 
 
 class PRE(object):
-    def __init__(self, curve=curves.secp256k1, g=None):
+    def __init__(self, curve=curves.secp256k1):
         self.curve = curve
         self.ecgroup = ec.elliptic_curve(nid=self.curve)
-        if g is None:
-            self.g = ec.random(self.ecgroup, ec.G)
-        else:
-            self.g = ec.deserialize(self.ecgroup, g)
+        self.g = ec.getGenerator(self.ecgroup)
         self.bitsize = ec.bitsize(self.ecgroup)
-
-    def to_dict(self):
-        return {'g': ec.serialize(self.g),
-                'curve': self.curve}
-
-    def serialize(self):
-        return msgpack.dumps(self.to_dict())
-
-    @classmethod
-    def deserialize(cls, s):
-        d = msgpack.loads(s)
-        return cls(**{x.decode(): d[x] for x in d})
 
     def gen_priv(self, dtype='ec'):
         priv = ec.random(self.ecgroup, ec.ZR)
