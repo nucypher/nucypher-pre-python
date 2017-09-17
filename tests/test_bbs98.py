@@ -9,9 +9,13 @@ msg28 = b'a' * 10 + b'b' * 10 + b'c' * 8
 def test_two_instances():
     pre = bbs98.PRE()
     pre1 = bbs98.PRE()
+    pre2 = bbs98.PRE(g=pre.g ** 2)
 
     assert pre.g == pre1.g
     assert pre.curve == pre1.curve
+    assert pre2.curve == pre.curve
+    assert pre2.g != pre.g
+    assert isinstance(pre2.g, type(pre.g))
 
 
 def test_keyops():

@@ -25,10 +25,18 @@ from typing import Union
 
 
 class PRE(object):
-    def __init__(self, curve=curves.secp256k1):
+    def __init__(self, curve=curves.secp256k1, g=None):
         self.curve = curve
         self.ecgroup = ec.elliptic_curve(nid=self.curve)
-        self.g = ec.getGenerator(self.ecgroup)
+
+        if g is None:
+            self.g = ec.getGenerator(self.ecgroup)
+        else:
+            if isinstance(g, ec.ec_element):
+                self.g = g
+            else:
+                self.g = ec.deserialize(self.ecgroup, g)
+
         self.bitsize = ec.bitsize(self.ecgroup)
 
     def gen_priv(self, dtype='ec'):
