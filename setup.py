@@ -16,8 +16,8 @@ TESTS_REQUIRE = [
 
 elliptic_curve = Extension(
         'npre.elliptic_curve',
-        sources=['npre/elliptic_curve/ecmodule.c', 'npre/util/base64/base64.c'],
-        include_dirs=['npre/util/base64', 'npre/elliptic_curve'],
+        sources=['npre/elliptic_curve/ecmodule.c'],
+        include_dirs=['npre/elliptic_curve'],
         libraries=['crypto', 'gmp'])
 
 setup(name='npre',

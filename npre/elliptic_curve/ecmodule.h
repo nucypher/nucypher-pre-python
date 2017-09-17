@@ -35,7 +35,6 @@
 #include <longintrepr.h>
 #include <math.h>
 #include <gmp.h>
-#include "base64.h"
 
 /* Openssl header files */
 #include "openssl/ec.h"
