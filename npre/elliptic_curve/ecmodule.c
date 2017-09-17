@@ -1414,6 +1414,9 @@ static PyObject *ECE_decode(ECElement *self, PyObject *args) {
 }
 
 static PyObject *Serialize(ECElement *self, PyObject *args) {
+    /* Serialize in format:
+     * 0x00<number> or 0x01<number> for ZR and G respectively
+     */
 
 	ECElement *obj = NULL;
 	if(!PyArg_ParseTuple(args, "O", &obj)) {
@@ -1424,23 +1427,23 @@ static PyObject *Serialize(ECElement *self, PyObject *args) {
 	if(obj != NULL && PyEC_Check(obj)) {
 		// allows export a compressed string
 		if(obj->point_init && obj->type == G) {
-			uint8_t p_buf[MAX_BUF+1];
-			memset(p_buf, 0, MAX_BUF);
-			size_t len = EC_POINT_point2oct(obj->group->ec_group, obj->P, POINT_CONVERSION_COMPRESSED,  p_buf, MAX_BUF, obj->group->ctx);
+			uint8_t p_buf[MAX_BUF + 1];
+			memset(p_buf, 1, MAX_BUF + 1);
+			size_t len = EC_POINT_point2oct(obj->group->ec_group, obj->P, POINT_CONVERSION_COMPRESSED,  p_buf + 1, MAX_BUF, obj->group->ctx);
 			EXIT_IF(len == 0, "could not serialize point.");
 
 			debug("Serialized point => ");
-			printf_buffer_as_hex(p_buf, len);
+			printf_buffer_as_hex(p_buf, len + 1);
 
-            PyObject *result = PyBytes_FromStringAndSize((const char *) p_buf, len);
+            PyObject *result = PyBytes_FromStringAndSize((const char *) p_buf, len + 1);
             return result;
 		}
 		else if(obj->point_init && obj->type == ZR) {
 			size_t len = BN_num_bytes(obj->elemZ);
-			uint8_t z_buf[len+1];
-			memset(z_buf, 0, len);
-			if(BN_bn2bin(obj->elemZ, z_buf) == len) {
-                PyObject *result = PyBytes_FromStringAndSize((const char *) z_buf, len);
+			uint8_t z_buf[len + 1];
+			memset(z_buf, 0, len + 1);
+			if(BN_bn2bin(obj->elemZ, z_buf + 1) == len) {
+                PyObject *result = PyBytes_FromStringAndSize((const char *) z_buf, len + 1);
 				return result;
 			}
 		}
