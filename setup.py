@@ -21,7 +21,7 @@ elliptic_curve = Extension(
         libraries=['crypto', 'gmp'])
 
 setup(name='npre',
-      version='0.1',
+      version='0.2',
       description='NuCypher proxy re-encryption libraries',
       ext_modules=[elliptic_curve],
       extras_require={'testing': TESTS_REQUIRE},
