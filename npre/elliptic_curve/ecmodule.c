@@ -1461,18 +1461,17 @@ static PyObject *Deserialize(ECElement *self, PyObject *args)
 	if(PyArg_ParseTuple(args, "OO", &gobj, &obj)) {
 		VERIFY_GROUP(gobj);
 		if(PyBytes_Check(obj)) {
-			unsigned char *serial_buf = (unsigned char *) PyBytes_AsString(obj);
-			GroupType type = atoi((const char *) &(serial_buf[0]));
-			uint8_t *base64_buf = (uint8_t *)(serial_buf + 2);
+            size_t len = PyBytes_Size(obj);
+            uint8_t *buf = (uint8_t *) PyBytes_AsString(obj);
 
-			size_t deserialized_len = 0;
-			uint8_t *buf = NewBase64Decode((const char *) base64_buf, strlen((char *) base64_buf), &deserialized_len);
-			size_t len = deserialized_len;
+            GroupType type = buf[0];
 			debug("Deserialize this => ");
 			printf_buffer_as_hex(buf, len);
+            len -= 1;
+
 			if(type == G) {
 				ECElement *newObj = createNewPoint(type, gobj); // ->group, gobj->ctx);
-				EC_POINT_oct2point(gobj->ec_group, newObj->P, (const uint8_t *) buf, len, gobj->ctx);
+				EC_POINT_oct2point(gobj->ec_group, newObj->P, (const uint8_t *) buf + 1, len, gobj->ctx);
 
 				if(EC_POINT_is_on_curve(gobj->ec_group, newObj->P, gobj->ctx)) {
 					obj=(PyObject *) newObj;
@@ -1480,13 +1479,12 @@ static PyObject *Deserialize(ECElement *self, PyObject *args)
 			}
 			else if(type == ZR) {
 				ECElement *newObj = createNewPoint(type, gobj);
-				BN_bin2bn((const uint8_t *) buf, len, newObj->elemZ);
+				BN_bin2bn((const uint8_t *) buf + 1, len, newObj->elemZ);
                 obj = (PyObject *) newObj;
 			}else{
                 Py_INCREF(Py_False);
                 obj = Py_False;
             }
-            free(buf);
 			return obj;
 		}
 		else {
