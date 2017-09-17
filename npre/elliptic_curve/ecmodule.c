@@ -1431,30 +1431,17 @@ static PyObject *Serialize(ECElement *self, PyObject *args) {
 
 			debug("Serialized point => ");
 			printf_buffer_as_hex(p_buf, len);
-			size_t length = 0;
-			char *base64_buf = NewBase64Encode(p_buf, len, FALSE, &length);
 
-			PyObject *result = PyBytes_FromString((const char *) base64_buf);
-			PyObject *obj2 = PyBytes_FromFormat("%d:", obj->type);
-			PyBytes_ConcatAndDel(&obj2, result);
-			free(base64_buf);
-			return obj2;
+            PyObject *result = PyBytes_FromStringAndSize((const char *) p_buf, len);
+            return result;
 		}
 		else if(obj->point_init && obj->type == ZR) {
 			size_t len = BN_num_bytes(obj->elemZ);
 			uint8_t z_buf[len+1];
 			memset(z_buf, 0, len);
 			if(BN_bn2bin(obj->elemZ, z_buf) == len) {
-				// we're okay
-				// convert z_buf to base64 and the rest is history.
-				size_t length = 0;
-				char *base64_buf = NewBase64Encode(z_buf, len, FALSE, &length);
-
-				PyObject *result = PyBytes_FromString((const char *) base64_buf);
-				PyObject *obj2 = PyBytes_FromFormat("%d:", obj->type);
-				PyBytes_ConcatAndDel(&obj2, result);
-				free(base64_buf);
-				return obj2;
+                PyObject *result = PyBytes_FromStringAndSize((const char *) z_buf, len);
+				return result;
 			}
 		}
 	}
