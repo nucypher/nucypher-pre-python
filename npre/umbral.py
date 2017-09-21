@@ -7,13 +7,28 @@ from npre import curves
 from typing import Union
 from sha3 import keccak_256 as keccak
 from collections import namedtuple
+from functools import reduce
+from operator import mul
 
 
 EncryptedKey = namedtuple('EncryptedKey', ['ekey', 're_id'])
 RekeyFrag = namedtuple('RekeyFrag', ['id', 'key'])
 
-# XXX for readability, made all the types non-serialized (EC, tuples)
 # XXX serialization probably should be done through decorators
+
+
+def lambda_coeff(id_i, selected_ids):
+    filtered_list = [x != id_i for x in selected_ids]
+    map_list = [id_j * ~(id_j - id_i) for id_j in filtered_list]
+    x = reduce(mul, map_list)
+    return x
+
+
+def poly_eval(coeff, x):
+    result = coeff[-1]
+    for i in range(-2, -len(coeff) - 1, - 1):
+        result = result * x + coeff[i]
+    return result
 
 
 class PRE(object):
