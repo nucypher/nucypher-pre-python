@@ -83,10 +83,28 @@ class PRE(object):
         rk = priv1 * (~priv2)
         return RekeyFrag(id=None, key=rk)
 
-    # XXX split_rekey
-    # XXX combine
-    # XXX lambda_coeff
-    # XXX poly_eval
+    def split_rekey(self, priv_a, priv_b, threshold, N):
+        coeffs = [priv_a * (~priv_b)]  # Standard rekey
+        coeffs += [ec.random(self.ecgroup, ec.ZR) for _ in range(threshold - 1)]
+
+        ids = [ec.random(self.ecgroup, ec.ZR) for _ in range(N)]
+        rk_shares = [
+                RekeyFrag(id, key=poly_eval(coeffs, id))
+                for id in ids]
+
+        return rk_shares
+
+    def combine(self, encrypted_keys):
+        if len(encrypted_keys) > 1:
+            ids = [x.re_id for x in encrypted_keys]
+            map_list = [
+                    x.ekey ** lambda_coeff(x.re_id, ids)
+                    for x in encrypted_keys]
+            product = reduce(mul, map_list)
+            return EncryptedKey(ekey=product, re_id=None)
+
+        elif len(encrypted_keys) == 1:
+            return encrypted_keys[0]
 
     def reencrypt(self, rk, ekey):
         new_ekey = ekey.ekey ** rk.key
