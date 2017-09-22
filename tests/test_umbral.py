@@ -32,3 +32,21 @@ def test_reencrypt():
 
     sym_key_3 = pre.decapsulate(priv_bob, ekey_alice)
     assert sym_key_3 != sym_key
+
+
+def test_m_of_n():
+    pre = umbral.PRE()
+    priv_alice = pre.gen_priv()
+    pub_alice = pre.priv2pub(priv_alice)
+    priv_bob = pre.gen_priv()
+
+    sym_key, ekey_alice = pre.encapsulate(pub_alice)
+
+    for N in [2, 5, 10]:
+        for threshold in range(1, N):
+            kfrags = pre.split_rekey(priv_alice, priv_bob, threshold, N)
+            ekeys = [pre.reencrypt(rk, ekey_alice) for rk in kfrags]
+            ekey_bob = pre.combine(ekeys)
+
+            sym_key_2 = pre.decapsulate(priv_bob, ekey_bob)
+            assert sym_key_2 == sym_key
