@@ -19,7 +19,7 @@ RekeyFrag = namedtuple('RekeyFrag', ['id', 'key'])
 
 
 def lambda_coeff(id_i, selected_ids):
-    filtered_list = [x != id_i for x in selected_ids]
+    filtered_list = [x for x in selected_ids if x != id_i]
     map_list = [id_j * ~(id_j - id_i) for id_j in filtered_list]
     x = reduce(mul, map_list)
     return x

@@ -1,3 +1,4 @@
+import pytest
 from npre import umbral
 
 
@@ -34,19 +35,28 @@ def test_reencrypt():
     assert sym_key_3 != sym_key
 
 
-def test_m_of_n():
+@pytest.mark.parametrize("N,threshold", [
+    (10, 8),
+    (3, 2),
+    (5, 4),
+    (100, 85),
+    (100, 99),
+    (1, 1),
+    (3, 1)])
+def test_m_of_n(N, threshold):
     pre = umbral.PRE()
     priv_alice = pre.gen_priv()
     pub_alice = pre.priv2pub(priv_alice)
     priv_bob = pre.gen_priv()
+    rk_ab = pre.rekey(priv_alice, priv_bob)
 
     sym_key, ekey_alice = pre.encapsulate(pub_alice)
 
-    for N in [2, 5, 10]:
-        for threshold in range(1, N):
-            kfrags = pre.split_rekey(priv_alice, priv_bob, threshold, N)
-            ekeys = [pre.reencrypt(rk, ekey_alice) for rk in kfrags]
-            ekey_bob = pre.combine(ekeys)
+    kfrags = pre.split_rekey(priv_alice, priv_bob, threshold, N)
+    ekeys = [pre.reencrypt(rk, ekey_alice) for rk in kfrags[:threshold]]
+    ekey_bob = pre.combine(ekeys)
 
-            sym_key_2 = pre.decapsulate(priv_bob, ekey_bob)
-            assert sym_key_2 == sym_key
+    assert ekey_bob.ekey == ekey_alice.ekey ** rk_ab.key
+
+    sym_key_2 = pre.decapsulate(priv_bob, ekey_bob)
+    assert sym_key_2 == sym_key
