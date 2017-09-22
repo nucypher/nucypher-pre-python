@@ -15,6 +15,7 @@ EncryptedKey = namedtuple('EncryptedKey', ['ekey', 're_id'])
 RekeyFrag = namedtuple('RekeyFrag', ['id', 'key'])
 
 # XXX serialization probably should be done through decorators
+# XXX write tests
 
 
 def lambda_coeff(id_i, selected_ids):
@@ -112,14 +113,14 @@ class PRE(object):
 
     def encapsulate(self, pub_key):
         """Generare an ephemeral key pair and symmetric key"""
-        priv_e = self.ecgroup.random()
+        priv_e = ec.random(self.ecgroup, ec.ZR)
         pub_e = self.g ** priv_e
 
         # DH between eph_private_key and public_key
         shared_key = pub_key ** priv_e
 
         # Key to be used for symmetric encryption
-        key = self.kdf(self.ecgroup.serialize(shared_key)[1:])
+        key = self.kdf(shared_key)
 
         return key, EncryptedKey(pub_e, re_id=None)
 
