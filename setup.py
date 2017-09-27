@@ -5,7 +5,7 @@ from distutils.core import setup, Extension
 
 # Haven't tried that on Windows or Mac
 
-INSTALL_REQUIRES = ['msgpack-python', 'pysha3']
+INSTALL_REQUIRES = ['msgpack-python', 'pysha3', 'cryptography']
 
 TESTS_REQUIRE = [
     'pytest',
