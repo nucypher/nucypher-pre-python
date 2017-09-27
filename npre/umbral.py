@@ -9,6 +9,9 @@ from sha3 import keccak_256 as keccak
 from collections import namedtuple
 from functools import reduce
 from operator import mul
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.backends import default_backend
 
 
 EncryptedKey = namedtuple('EncryptedKey', ['ekey', 're_id'])
@@ -47,10 +50,18 @@ class PRE(object):
 
         self.bitsize = ec.bitsize(self.ecgroup)
 
-    def kdf(self, ecdata):
+    def kdf(self, ecdata, key_length):
         # XXX length
-        for_hash = ec.serialize(ecdata)[1:]  # Remove the first (type) bit
-        return keccak(for_hash).digest()
+        ecdata = ec.serialize(ecdata)[1:]  # Remove the first (type) bit
+
+        # TODO: Handle salt somehow
+        return HKDF(
+            algorithm=hashes.SHA512(),
+            length=key_length,
+            salt=None,
+            info=None,
+            backend=default_backend()
+        ).derive(ecdata)
 
     def gen_priv(self, dtype='ec'):
         # Same as in BBS98
@@ -111,7 +122,7 @@ class PRE(object):
         new_ekey = ekey.ekey ** rk.key
         return EncryptedKey(new_ekey, rk.id)
 
-    def encapsulate(self, pub_key):
+    def encapsulate(self, pub_key, key_length=32):
         """Generare an ephemeral key pair and symmetric key"""
         priv_e = ec.random(self.ecgroup, ec.ZR)
         pub_e = self.g ** priv_e
@@ -120,12 +131,12 @@ class PRE(object):
         shared_key = pub_key ** priv_e
 
         # Key to be used for symmetric encryption
-        key = self.kdf(shared_key)
+        key = self.kdf(shared_key, key_length)
 
         return key, EncryptedKey(pub_e, re_id=None)
 
-    def decapsulate(self, priv_key, ekey):
+    def decapsulate(self, priv_key, ekey, key_length=32):
         """Derive the same symmetric key"""
         shared_key = ekey.ekey ** priv_key
-        key = self.kdf(shared_key)
+        key = self.kdf(shared_key, key_length)
         return key
