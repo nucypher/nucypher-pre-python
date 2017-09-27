@@ -50,14 +50,14 @@ class PRE(object):
 
         self.bitsize = ec.bitsize(self.ecgroup)
 
-    def kdf(self, ecdata):
+    def kdf(self, ecdata, key_length):
         # XXX length
         ecdata = ec.serialize(ecdata)[1:]  # Remove the first (type) bit
 
         # TODO: Handle salt somehow
         return HKDF(
-            algorithm=hashes.SHA256(),
-            length=32,
+            algorithm=hashes.SHA512(),
+            length=key_length,
             salt=None,
             info=None,
             backend=default_backend()
@@ -122,7 +122,7 @@ class PRE(object):
         new_ekey = ekey.ekey ** rk.key
         return EncryptedKey(new_ekey, rk.id)
 
-    def encapsulate(self, pub_key):
+    def encapsulate(self, pub_key, key_length=32):
         """Generare an ephemeral key pair and symmetric key"""
         priv_e = ec.random(self.ecgroup, ec.ZR)
         pub_e = self.g ** priv_e
@@ -131,12 +131,12 @@ class PRE(object):
         shared_key = pub_key ** priv_e
 
         # Key to be used for symmetric encryption
-        key = self.kdf(shared_key)
+        key = self.kdf(shared_key, key_length)
 
         return key, EncryptedKey(pub_e, re_id=None)
 
-    def decapsulate(self, priv_key, ekey):
+    def decapsulate(self, priv_key, ekey, key_length=32):
         """Derive the same symmetric key"""
         shared_key = ekey.ekey ** priv_key
-        key = self.kdf(shared_key)
+        key = self.kdf(shared_key, key_length)
         return key
