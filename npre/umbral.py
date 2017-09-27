@@ -9,6 +9,9 @@ from sha3 import keccak_256 as keccak
 from collections import namedtuple
 from functools import reduce
 from operator import mul
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.backends import default_backend
 
 
 EncryptedKey = namedtuple('EncryptedKey', ['ekey', 're_id'])
@@ -49,8 +52,16 @@ class PRE(object):
 
     def kdf(self, ecdata):
         # XXX length
-        for_hash = ec.serialize(ecdata)[1:]  # Remove the first (type) bit
-        return keccak(for_hash).digest()
+        ecdata = ec.serialize(ecdata)[1:]  # Remove the first (type) bit
+
+        # TODO: Handle salt somehow
+        return HKDF(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=None,
+            info=None,
+            backend=default_backend()
+        ).derive(ecdata)
 
     def gen_priv(self, dtype='ec'):
         # Same as in BBS98
