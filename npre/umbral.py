@@ -48,7 +48,7 @@ class PRE(object):
             else:
                 self.g = ec.deserialize(self.ecgroup, g)
 
-        self.bitsize = ec.bitsize(self.ecgroup)
+        self.bytesize = ec.bitsize(self.ecgroup)
 
     def kdf(self, ecdata):
         # XXX length
@@ -57,7 +57,7 @@ class PRE(object):
         # TODO: Handle salt somehow
         return HKDF(
             algorithm=hashes.SHA256(),
-            length=32,
+            length=self.bytesize,
             salt=None,
             info=None,
             backend=default_backend()
