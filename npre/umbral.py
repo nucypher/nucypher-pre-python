@@ -1,5 +1,9 @@
 '''
 Umbral -- A Threshold Proxy Re-Encryption based on ECIES-KEM and BBS98
+
+Implemented by:
+David Nuñez (dnunez@lcc.uma.es);
+Michael Egorov (michael@nucypher.com)
 '''
 
 import npre.elliptic_curve as ec
