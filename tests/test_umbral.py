@@ -77,7 +77,7 @@ def test_m_of_n(N, threshold):
     (1, 1),
     (3, 1)
     ])
-def test_alice_send__some_Ursula(N, threshold):
+def test_alice_sends_fake_kFrag_to_Ursula(N, threshold):
     pre = umbral.PRE()
     priv_alice = pre.gen_priv()
     pub_alice = pre.priv2pub(priv_alice)
