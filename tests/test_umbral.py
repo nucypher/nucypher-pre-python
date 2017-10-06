@@ -43,8 +43,8 @@ def test_reencrypt():
     (5, 4),
     (100, 85),
     (100, 99),
-    #(1, 1),
-    #(3, 1)
+    (1, 1),
+    (3, 1)
     ])
 def test_m_of_n(N, threshold):
     pre = umbral.PRE()
@@ -74,8 +74,8 @@ def test_m_of_n(N, threshold):
     (5, 4),
     (100, 85),
     (100, 99),
-    #(1, 1),
-    #(3, 1)
+    (1, 1),
+    (3, 1)
     ])
 def test_alice_send__some_Ursula(N, threshold):
     pre = umbral.PRE()
