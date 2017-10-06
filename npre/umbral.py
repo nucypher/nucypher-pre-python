@@ -1,5 +1,5 @@
 '''
-Umbral: split-key proxy re-encryption for ECIES
+Umbral -- A Threshold Proxy Re-Encryption based on ECIES-KEM and BBS98
 '''
 
 import npre.elliptic_curve as ec
@@ -99,12 +99,31 @@ class PRE(object):
         coeffs = [priv_a * (~priv_b)]  # Standard rekey
         coeffs += [ec.random(self.ecgroup, ec.ZR) for _ in range(threshold - 1)]
 
+        # TODO: change this!
+        h = self.g
+        vKeys = [ h ** coeff for coeff in coeffs]
+
         ids = [ec.random(self.ecgroup, ec.ZR) for _ in range(N)]
         rk_shares = [
                 RekeyFrag(id, key=poly_eval(coeffs, id))
                 for id in ids]
 
-        return rk_shares
+        return rk_shares, vKeys
+
+    def check_kFrag_consistency(self, kFrag, vKeys):
+        i = kFrag.id
+        # TODO: change this!
+        h = self.g
+
+        i_j = [i]
+        for _ in range(len(vKeys)-2):
+            i_j.append(i_j[-1] * i)
+
+        rh_exp = reduce(mul, [x ** y for (x,y) in zip(vKeys[1:], i_j)])
+        rh_exp = vKeys[0] * rh_exp
+        lh_exp = h ** kFrag.key
+
+        return lh_exp == rh_exp
 
     def combine(self, encrypted_keys):
         if len(encrypted_keys) > 1:
