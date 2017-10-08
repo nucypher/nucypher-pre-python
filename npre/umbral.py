@@ -1,11 +1,14 @@
 '''
-Umbral: split-key proxy re-encryption for ECIES
+Umbral -- A Threshold Proxy Re-Encryption based on ECIES-KEM and BBS98
+
+Implemented by:
+David Nuñez (dnunez@lcc.uma.es);
+Michael Egorov (michael@nucypher.com)
 '''
 
 import npre.elliptic_curve as ec
 from npre import curves
 from typing import Union
-from sha3 import keccak_256 as keccak
 from collections import namedtuple
 from functools import reduce
 from operator import mul
@@ -16,9 +19,6 @@ from cryptography.hazmat.backends import default_backend
 
 EncryptedKey = namedtuple('EncryptedKey', ['ekey', 're_id'])
 RekeyFrag = namedtuple('RekeyFrag', ['id', 'key'])
-
-# XXX serialization probably should be done through decorators
-# XXX write tests
 
 
 def lambda_coeff(id_i, selected_ids):
@@ -99,12 +99,38 @@ class PRE(object):
         coeffs = [priv_a * (~priv_b)]  # Standard rekey
         coeffs += [ec.random(self.ecgroup, ec.ZR) for _ in range(threshold - 1)]
 
+        # TODO: change this!
+        h = self.g
+
+        vKeys = [h ** coeff for coeff in coeffs]
+
         ids = [ec.random(self.ecgroup, ec.ZR) for _ in range(N)]
         rk_shares = [
                 RekeyFrag(id, key=poly_eval(coeffs, id))
                 for id in ids]
 
-        return rk_shares
+        return rk_shares, vKeys
+
+    def check_kFrag_consistency(self, kFrag, vKeys):
+        if vKeys is None or len(vKeys) == 0:
+            raise ValueError('vKeys must not be empty')
+
+        i = kFrag.id
+        # TODO: change this!
+        h = self.g
+        lh_exp = h ** kFrag.key
+
+        if len(vKeys) > 1:
+            i_j = [i]
+            for _ in range(len(vKeys) - 2):
+                i_j.append(i_j[-1] * i)
+            rh_exp = reduce(mul, [x ** y for (x, y) in zip(vKeys[1:], i_j)])
+            rh_exp = vKeys[0] * rh_exp
+
+        else:
+            rh_exp = vKeys[0]
+
+        return lh_exp == rh_exp
 
     def combine(self, encrypted_keys):
         if len(encrypted_keys) > 1:
