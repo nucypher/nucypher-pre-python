@@ -1,5 +1,6 @@
 import pytest
 from npre import umbral
+from npre.umbral import RekeyFrag
 
 
 def test_encrypt_decrypt():
@@ -60,3 +61,13 @@ def test_m_of_n(N, threshold):
 
     sym_key_2 = pre.decapsulate(priv_bob, ekey_bob)
     assert sym_key_2 == sym_key
+
+    return kfrags
+
+
+def test_frag_as_bytes():
+    kfrags = test_m_of_n(5, 5)
+    some_particular_kfrag = kfrags[3]
+    kfrag_as_bytes = bytes(some_particular_kfrag)
+    back_to_kfrag = RekeyFrag.from_bytes(kfrag_as_bytes)
+    assert some_particular_kfrag == back_to_kfrag
