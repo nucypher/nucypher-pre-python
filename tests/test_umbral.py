@@ -63,18 +63,20 @@ def test_m_of_n(N, threshold):
     sym_key_2 = pre.decapsulate(priv_bob, ekey_bob)
     assert sym_key_2 == sym_key
 
-    return kfrags
+    return kfrags, pre
 
 
 def test_kfrag_serialization():
-    kfrags = test_m_of_n(5, 5)
+    kfrags, pre = test_m_of_n(5, 5)
     some_particular_kfrag = kfrags[3]
-    serialized_id = ec.serialize(some_particular_kfrag.id)
-    deserialized_id = ec.deserialize(serialized_id)
+    original_id = some_particular_kfrag.id
+    serialized_id = ec.serialize(original_id)
+    deserialized_id = ec.deserialize(pre.ecgroup, serialized_id)
+    assert deserialized_id == original_id
 
 
 def test_frag_as_bytes():
-    kfrags = test_m_of_n(5, 5)
+    kfrags, pre = test_m_of_n(5, 5)
     some_particular_kfrag = kfrags[3]
     kfrag_as_bytes = bytes(some_particular_kfrag)
     back_to_kfrag = RekeyFrag.from_bytes(kfrag_as_bytes)
