@@ -133,8 +133,6 @@ class PRE(object):
 
 class RekeyFrag(object):
 
-    DELIMETER = b"||"
-
     _pre = PRE()
 
     def __init__(self, id, key, pre=None):
