@@ -4,6 +4,7 @@ Umbral: split-key proxy re-encryption for ECIES
 
 import npre.elliptic_curve as ec
 from npre import curves
+from npre.constants import UNKNOWN_KFRAG
 from typing import Union
 from sha3 import keccak_256 as keccak
 from collections import namedtuple
@@ -26,17 +27,17 @@ class RekeyFrag(object):
         self.key = key
 
     def __bytes__(self):
-        return int(self.id).to_bytes(32, byteorder='big') + self.DELIMETER + int(self.key).to_bytes(32, byteorder='big')
+        return ec.serialize(self.id) + ec.serialize(self.key)
 
     def __eq__(self, other_kfrag):
+        if other_kfrag == UNKNOWN_KFRAG:
+            return False
         return self.id == other_kfrag.id and self.key == other_kfrag.key
-
 
     @classmethod
     def from_bytes(cls, kfrag_bytes):
-        # TODO: Obviously this needs to actually do something that reconstructs the kFrag.
-        id, key = kfrag_bytes.split(cls.DELIMETER)
-        return RekeyFrag(id, key)
+        return RekeyFrag(id=ec.deserialize(kfrag_bytes[:len(kfrag_bytes) // 2]),
+                         key=ec.deserialize(kfrag_bytes[len(kfrag_bytes) // 2:]))
 
 # XXX serialization probably should be done through decorators
 # XXX write tests

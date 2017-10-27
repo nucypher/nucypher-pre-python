@@ -1,6 +1,7 @@
 import pytest
 from npre import umbral
 from npre.umbral import RekeyFrag
+import npre.elliptic_curve as ec
 
 
 def test_encrypt_decrypt():
@@ -63,6 +64,13 @@ def test_m_of_n(N, threshold):
     assert sym_key_2 == sym_key
 
     return kfrags
+
+
+def test_kfrag_serialization():
+    kfrags = test_m_of_n(5, 5)
+    some_particular_kfrag = kfrags[3]
+    serialized_id = ec.serialize(some_particular_kfrag.id)
+    deserialized_id = ec.deserialize(serialized_id)
 
 
 def test_frag_as_bytes():
