@@ -10,6 +10,7 @@ name = "pypi"
 msgpack-python = "*"
 "pysha3" = "*"
 ipython = "*"
+cryptography = "*"
 
 
 [dev-packages]
