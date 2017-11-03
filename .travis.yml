@@ -1,0 +1,10 @@
+language: python
+cache: pip
+python:
+- '3.5'
+- '3.6'
+install:
+- pip install pipenv --upgrade
+- pipenv install --dev --three
+script:
+- pipenv run "pytest -v tests"

@@ -1,0 +1,26 @@
+[[source]]
+
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+
+[packages]
+
+msgpack-python = "*"
+"pysha3" = "*"
+ipython = "*"
+
+
+[dev-packages]
+
+pytest = "*"
+coverage = "*"
+pytest-cov = "*"
+pdbpp = "*"
+ipython = "*"
+
+
+[requires]
+
+python_version = "3.6"
