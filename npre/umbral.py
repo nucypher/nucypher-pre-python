@@ -4,6 +4,7 @@ Umbral: split-key proxy re-encryption for ECIES
 
 import npre.elliptic_curve as ec
 from npre import curves
+from npre.constants import UNKNOWN_KFRAG
 from typing import Union
 from sha3 import keccak_256 as keccak
 from collections import namedtuple
@@ -15,7 +16,6 @@ from cryptography.hazmat.backends import default_backend
 
 
 EncryptedKey = namedtuple('EncryptedKey', ['ekey', 're_id'])
-RekeyFrag = namedtuple('RekeyFrag', ['id', 'key'])
 
 # XXX serialization probably should be done through decorators
 # XXX write tests
@@ -93,7 +93,7 @@ class PRE(object):
     def rekey(self, priv1, priv2, dtype=None):
         # Same as in BBS98
         rk = priv1 * (~priv2)
-        return RekeyFrag(id=None, key=rk)
+        return RekeyFrag(id=None, key=rk, pre=self)
 
     def split_rekey(self, priv_a, priv_b, threshold, N):
         coeffs = [priv_a * (~priv_b)]  # Standard rekey
@@ -101,7 +101,7 @@ class PRE(object):
 
         ids = [ec.random(self.ecgroup, ec.ZR) for _ in range(N)]
         rk_shares = [
-                RekeyFrag(id, key=poly_eval(coeffs, id))
+                RekeyFrag(id, key=poly_eval(coeffs, id), pre=self)
                 for id in ids]
 
         return rk_shares
@@ -140,3 +140,30 @@ class PRE(object):
         shared_key = ekey.ekey ** priv_key
         key = self.kdf(shared_key, key_length)
         return key
+
+
+class RekeyFrag(object):
+
+    _pre = PRE()
+
+    def __init__(self, id, key, pre=None):
+        self.id = id
+        self.key = key
+        if pre is None:
+            pre = self._pre
+        self.pre = pre
+
+    def __bytes__(self):
+        return ec.serialize(self.id) + ec.serialize(self.key)
+
+    def __eq__(self, other_kfrag):
+        if other_kfrag is UNKNOWN_KFRAG:
+            return False
+        return bytes(self) == bytes(other_kfrag)
+
+    @classmethod
+    def from_bytes(cls, kfrag_bytes, pre=None):
+        pre = pre or cls._pre
+        return RekeyFrag(id=ec.deserialize(pre.ecgroup, kfrag_bytes[:len(kfrag_bytes) // 2]),
+                         key=ec.deserialize(pre.ecgroup, kfrag_bytes[len(kfrag_bytes) // 2:]),
+                         pre=pre)
