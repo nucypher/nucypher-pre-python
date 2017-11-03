@@ -6,7 +6,6 @@ python:
 install:
 - pip install pipenv --upgrade
 - pipenv install --dev --three
-- pipenv shell
-- pip install tox-travis
+- pipenv install tox-travis
 script:
-- tox
+- pipenv run tox
