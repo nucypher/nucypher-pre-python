@@ -2,7 +2,7 @@
 Umbral -- A Threshold Proxy Re-Encryption based on ECIES-KEM and BBS98
 
 Implemented by:
-David Nuñez (dnunez@lcc.uma.es);
+David Nuñez (dnunez@lcc.uma.es)
 Michael Egorov (michael@nucypher.com)
 '''
 
@@ -17,8 +17,9 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.backends import default_backend
 
 
-EncryptedKey = namedtuple('EncryptedKey', ['ekey', 're_id'])
-RekeyFrag = namedtuple('RekeyFrag', ['id', 'key'])
+EncryptedKey = namedtuple('EncryptedKey', ['ekey', 're_id', 'eph_pub', 'enc_eph_priv'])
+RekeyFrag = namedtuple('RekeyFrag', ['id', 'key', 'eph_pub', 'enc_eph_priv'])
+ReKeyFragProof = namedtuple('ReKeyFragProof', ['id', 'eph_pub', 'proof'])
 
 
 def lambda_coeff(id_i, selected_ids):
@@ -93,10 +94,19 @@ class PRE(object):
     def rekey(self, priv1, priv2, dtype=None):
         # Same as in BBS98
         rk = priv1 * (~priv2)
-        return RekeyFrag(id=None, key=rk)
+        return RekeyFrag(id=None, key=rk, eph_pub=None, enc_eph_priv=None)
 
-    def split_rekey(self, priv_a, priv_b, threshold, N):
-        coeffs = [priv_a * (~priv_b)]  # Standard rekey
+    def split_rekey(self, priv_a, pub_b, threshold, N):
+
+        # Generate 'ephemeral' key pair (perhaps we should find another name...)
+        eph_priv = ec.random(self.ecgroup, ec.ZR)
+        eph_pub = self.g ** eph_priv
+
+        # WARNING!!
+        # THIS SHOULD BE THE ENCRYPTION OF eph_priv WITH pub_b PUBLIC KEY !!!
+        enc_eph_priv = eph_priv
+
+        coeffs = [priv_a * (~eph_priv)]
         coeffs += [ec.random(self.ecgroup, ec.ZR) for _ in range(threshold - 1)]
 
         # TODO: change this!
@@ -105,8 +115,14 @@ class PRE(object):
         vKeys = [h ** coeff for coeff in coeffs]
 
         ids = [ec.random(self.ecgroup, ec.ZR) for _ in range(N)]
+
+
         rk_shares = [
-                RekeyFrag(id, key=poly_eval(coeffs, id))
+                RekeyFrag(
+                    id=id, 
+                    key=poly_eval(coeffs, id), 
+                    eph_pub=eph_pub, 
+                    enc_eph_priv=enc_eph_priv)
                 for id in ids]
 
         return rk_shares, vKeys
@@ -130,7 +146,29 @@ class PRE(object):
         else:
             rh_exp = vKeys[0]
 
-        return lh_exp == rh_exp
+        correct_kFrag_proof = kFrag.eph_pub ** kFrag.key
+
+        if lh_exp == rh_exp:
+            return ReKeyFragProof(i, kFrag.eph_pub, correct_kFrag_proof)
+        else:
+            return None
+
+    def check_kFrag_proofs(self, proofs, pub_owner):
+
+        for proof in proofs:
+            assert proof is not None
+            assert proofs[0].eph_pub == proof.eph_pub
+
+        if len(proofs) > 1:
+            ids = [x.id for x in proofs]
+            map_list = [
+                    x.proof ** lambda_coeff(x.id, ids)
+                    for x in proofs]
+            product = reduce(mul, map_list)
+            return product == pub_owner
+
+        elif len(proofs) == 1:
+            return proofs[0].proof == pub_owner
 
     def combine(self, encrypted_keys):
         if len(encrypted_keys) > 1:
@@ -139,17 +177,20 @@ class PRE(object):
                     x.ekey ** lambda_coeff(x.re_id, ids)
                     for x in encrypted_keys]
             product = reduce(mul, map_list)
-            return EncryptedKey(ekey=product, re_id=None)
+            return EncryptedKey(
+                ekey=product, re_id=None, 
+                enc_eph_priv=encrypted_keys[0].enc_eph_priv,
+                eph_pub=encrypted_keys[0].eph_pub)
 
         elif len(encrypted_keys) == 1:
             return encrypted_keys[0]
 
     def reencrypt(self, rk, ekey):
         new_ekey = ekey.ekey ** rk.key
-        return EncryptedKey(new_ekey, rk.id)
+        return EncryptedKey(new_ekey, re_id=rk.id, eph_pub=rk.eph_pub, enc_eph_priv=rk.enc_eph_priv)
 
     def encapsulate(self, pub_key, key_length=32):
-        """Generare an ephemeral key pair and symmetric key"""
+        """Produces a symmetric key for encryption, and an associated encapsulated key"""
         priv_e = ec.random(self.ecgroup, ec.ZR)
         pub_e = self.g ** priv_e
 
@@ -159,10 +200,16 @@ class PRE(object):
         # Key to be used for symmetric encryption
         key = self.kdf(shared_key, key_length)
 
-        return key, EncryptedKey(pub_e, re_id=None)
+        return key, EncryptedKey(pub_e, re_id=None, eph_pub=None, enc_eph_priv=None)
 
     def decapsulate(self, priv_key, ekey, key_length=32):
-        """Derive the same symmetric key"""
-        shared_key = ekey.ekey ** priv_key
+        """Reconstructs the symmetric key from encapsulated key"""
+        if ekey.eph_pub is None:
+            exponent = priv_key
+        else:
+            # TODO: change this to actual decryption using priv_key
+            exponent = ekey.enc_eph_priv
+
+        shared_key = ekey.ekey ** exponent
         key = self.kdf(shared_key, key_length)
         return key
