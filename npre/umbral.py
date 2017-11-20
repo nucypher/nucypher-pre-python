@@ -146,7 +146,7 @@ class RekeyFrag(object):
 
     _pre = PRE()
 
-    def __init__(self, id, key, pre=None):
+    def __init__(self, id: ec.ec_element, key: ec.ec_element, pre=None):
         self.id = id
         self.key = key
         if pre is None:
@@ -164,6 +164,7 @@ class RekeyFrag(object):
     @classmethod
     def from_bytes(cls, kfrag_bytes, pre=None):
         pre = pre or cls._pre
-        return RekeyFrag(id=ec.deserialize(pre.ecgroup, kfrag_bytes[:len(kfrag_bytes) // 2]),
-                         key=ec.deserialize(pre.ecgroup, kfrag_bytes[len(kfrag_bytes) // 2:]),
-                         pre=pre)
+        id = ec.deserialize(pre.ecgroup, kfrag_bytes[:len(kfrag_bytes) // 2])
+        key = ec.deserialize(pre.ecgroup, kfrag_bytes[len(kfrag_bytes) // 2:])
+
+        return RekeyFrag(id=id, key=key, pre=pre)
