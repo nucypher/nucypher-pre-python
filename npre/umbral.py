@@ -17,7 +17,10 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.backends import default_backend
 
 
-EncryptedKey = namedtuple('EncryptedKey', ['ekey', 're_id'])
+EncryptedKey = namedtuple('EncryptedKey', ['ekey', 'vcomp', 'scomp'])
+ReEncryptedKey = namedtuple('ReEncryptedKey', ['ekey', 'vcomp', 're_id'])
+ReCombined = namedtuple('ReCombined', ['ekey', 'vcomp'])
+
 RekeyFrag = namedtuple('RekeyFrag', ['id', 'key'])
 
 
@@ -49,6 +52,7 @@ class PRE(object):
                 self.g = ec.deserialize(self.ecgroup, g)
 
         self.bitsize = ec.bitsize(self.ecgroup)
+        self.order = ec.order(self.ecgroup)
 
     def kdf(self, ecdata, key_length):
         # XXX length
@@ -62,6 +66,17 @@ class PRE(object):
             info=None,
             backend=default_backend()
         ).derive(ecdata)
+
+    def hash_points_to_bn(self, list):
+        n=115792089237316195423570985008687907852837564279074904382605163141518161494337
+
+        digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+        for point in list:
+            digest.update(ec.serialize(point))
+        hash = digest.finalize()
+        h = int.from_bytes(hash, byteorder='big', signed=False) % n
+
+        return h
 
     def gen_priv(self, dtype='ec'):
         # Same as in BBS98
@@ -132,37 +147,82 @@ class PRE(object):
 
         return lh_exp == rh_exp
 
-    def combine(self, encrypted_keys):
-        if len(encrypted_keys) > 1:
-            ids = [x.re_id for x in encrypted_keys]
-            map_list = [
-                    x.ekey ** lambda_coeff(x.re_id, ids)
-                    for x in encrypted_keys]
-            product = reduce(mul, map_list)
-            return EncryptedKey(ekey=product, re_id=None)
+    def combine(self, reencrypted_keys):
+        x0 = reencrypted_keys[0]
+        
+        if len(reencrypted_keys) > 1:
+            ids = [x.re_id for x in reencrypted_keys]
+            lambda_0 = lambda_coeff(x0.re_id, ids)
+            e = x0.ekey ** lambda_0
+            v = x0.vcomp ** lambda_0
+            for x in reencrypted_keys[1:]:
+                lambda_i = lambda_coeff(x.re_id, ids)
+                e = e * (x.ekey  ** lambda_i)
+                v = v * (x.vcomp ** lambda_i)
 
-        elif len(encrypted_keys) == 1:
-            return encrypted_keys[0]
+            return ReCombined(ekey=e, vcomp=v)
 
-    def reencrypt(self, rk, ekey):
-        new_ekey = ekey.ekey ** rk.key
-        return EncryptedKey(new_ekey, rk.id)
+        else: #if len(reencrypted_keys) == 1:
+            return ReCombined(ekey=x0.ekey, vcomp=x0.vcomp)
+
+    def reencrypt(self, rk, encrypted_key):
+
+        e = encrypted_key.ekey
+        v = encrypted_key.vcomp
+        s = encrypted_key.scomp
+        h = self.hash_points_to_bn([e, v])
+
+        e1 = e ** rk.key
+        v1 = v ** rk.key
+
+        # Check after performing the operations to avoid timing oracles
+        assert self.g ** s == v * (e ** h)
+
+        return ReEncryptedKey(ekey=e1, vcomp=v1, re_id=rk.id)
 
     def encapsulate(self, pub_key, key_length=32):
         """Generare an ephemeral key pair and symmetric key"""
-        priv_e = ec.random(self.ecgroup, ec.ZR)
-        pub_e = self.g ** priv_e
+        
+        priv_r = ec.random(self.ecgroup, ec.ZR)
+        pub_r = self.g ** priv_r
+
+        priv_u = ec.random(self.ecgroup, ec.ZR)
+        pub_u = self.g ** priv_u
+
+        h = self.hash_points_to_bn([pub_r, pub_u])
+        s = priv_u + priv_r * h
 
         # DH between eph_private_key and public_key
-        shared_key = pub_key ** priv_e
+        shared_key = pub_key ** priv_r
 
         # Key to be used for symmetric encryption
         key = self.kdf(shared_key, key_length)
 
-        return key, EncryptedKey(pub_e, re_id=None)
+        return key, EncryptedKey(ekey=pub_r, vcomp=pub_u, scomp=s)
 
-    def decapsulate(self, priv_key, ekey, key_length=32):
+    def decapsulate_original(self, priv_key, encrypted_key, key_length=32):
         """Derive the same symmetric key"""
-        shared_key = ekey.ekey ** priv_key
+        shared_key = encrypted_key.ekey ** priv_key
         key = self.kdf(shared_key, key_length)
         return key
+
+    def decapsulate_reencrypted(self, priv_key, reencrypted_key, orig_pk, orig_encrypted_key, key_length=32):
+        """Derive the same symmetric key"""
+
+        e1 = reencrypted_key.ekey
+        v1 = reencrypted_key.vcomp
+
+        shared_key = e1 ** priv_key
+        key = self.kdf(shared_key, key_length)
+
+        e = orig_encrypted_key.ekey
+        v = orig_encrypted_key.vcomp
+        s = orig_encrypted_key.scomp
+        h = self.hash_points_to_bn([e, v])
+
+        inv_b = ~priv_key
+
+        assert orig_pk ** (s * inv_b) == v1 * (e1 ** h)
+
+        return key
+

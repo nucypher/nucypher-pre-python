@@ -14,7 +14,7 @@ def test_encrypt_decrypt():
 
     # The symmetric key sym_key should be used for block cipher
 
-    sym_key_2 = pre.decapsulate(priv_key, ekey)
+    sym_key_2 = pre.decapsulate_original(priv_key, ekey)
     assert sym_key_2 == sym_key
 
 
@@ -30,10 +30,10 @@ def test_reencrypt():
 
     ekey_bob = pre.reencrypt(rk_ab, ekey_alice)
 
-    sym_key_2 = pre.decapsulate(priv_bob, ekey_bob)
+    sym_key_2 = pre.decapsulate_reencrypted(priv_bob, ekey_bob, pub_alice, ekey_alice)
     assert sym_key_2 == sym_key
 
-    sym_key_3 = pre.decapsulate(priv_bob, ekey_alice)
+    sym_key_3 = pre.decapsulate_original(priv_bob, ekey_alice)
     assert sym_key_3 != sym_key
 
 
@@ -41,10 +41,10 @@ def test_reencrypt():
     (10, 8),
     (3, 2),
     (5, 4),
+    (1, 1),
+    (3, 1),
     (100, 85),
     (100, 99),
-    (1, 1),
-    (3, 1)
     ])
 def test_m_of_n(N, threshold):
     pre = umbral.PRE()
@@ -65,32 +65,32 @@ def test_m_of_n(N, threshold):
 
     assert ekey_bob.ekey == ekey_alice.ekey ** rk_ab.key
 
-    sym_key_2 = pre.decapsulate(priv_bob, ekey_bob)
+    sym_key_2 = pre.decapsulate_reencrypted(priv_bob, ekey_bob, pub_alice, ekey_alice)
     assert sym_key_2 == sym_key
 
-@pytest.mark.parametrize("N,threshold", [
-    (10, 8),
-    (3, 2),
-    (5, 4),
-    (100, 85),
-    (100, 99),
-    (1, 1),
-    (3, 1)
-    ])
-def test_alice_sends_fake_kFrag_to_Ursula(N, threshold):
-    pre = umbral.PRE()
-    priv_alice = pre.gen_priv()
-    pub_alice = pre.priv2pub(priv_alice)
-    priv_bob = pre.gen_priv()
-    rk_ab = pre.rekey(priv_alice, priv_bob)
+# @pytest.mark.parametrize("N,threshold", [
+#     (10, 8),
+#     (3, 2),
+#     (5, 4),
+#     (100, 85),
+#     (100, 99),
+#     (1, 1),
+#     (3, 1)
+#     ])
+# def test_alice_sends_fake_kFrag_to_Ursula(N, threshold):
+#     pre = umbral.PRE()
+#     priv_alice = pre.gen_priv()
+#     pub_alice = pre.priv2pub(priv_alice)
+#     priv_bob = pre.gen_priv()
+#     rk_ab = pre.rekey(priv_alice, priv_bob)
 
-    sym_key, ekey_alice = pre.encapsulate(pub_alice)
+#     sym_key, ekey_alice = pre.encapsulate(pub_alice)
 
-    kfrags, vkeys = pre.split_rekey(priv_alice, priv_bob, threshold, N)
+#     kfrags, vkeys = pre.split_rekey(priv_alice, priv_bob, threshold, N)
 
-    for kfrag in kfrags:
-        assert pre.check_kFrag_consistency(kfrag, vkeys)
+#     for kfrag in kfrags:
+#         assert pre.check_kFrag_consistency(kfrag, vkeys)
 
-    # Alice tries to frame the first Ursula by sending her a random kFrag
-    fake_kfrag = kfrags[0]._replace(key=ec.random(pre.ecgroup, ec.ZR))
-    assert not pre.check_kFrag_consistency(fake_kfrag, vkeys)
+#     # Alice tries to frame the first Ursula by sending her a random kFrag
+#     fake_kfrag = kfrags[0]._replace(key=ec.random(pre.ecgroup, ec.ZR))
+#     assert not pre.check_kFrag_consistency(fake_kfrag, vkeys)
