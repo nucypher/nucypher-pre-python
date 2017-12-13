@@ -4,6 +4,12 @@ Umbral -- A Threshold Proxy Re-Encryption based on ECIES-KEM and BBS98
 Implemented by:
 David Nuñez (dnunez@lcc.uma.es);
 Michael Egorov (michael@nucypher.com)
+
+TODO: 
+    * input validation on all methods
+    * generator h for vKeys
+    * full-domain hash
+
 '''
 
 import npre.elliptic_curve as ec
@@ -68,13 +74,12 @@ class PRE(object):
         ).derive(ecdata)
 
     def hash_points_to_bn(self, list):
-        n=115792089237316195423570985008687907852837564279074904382605163141518161494337
 
         digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
         for point in list:
             digest.update(ec.serialize(point))
         hash = digest.finalize()
-        h = int.from_bytes(hash, byteorder='big', signed=False) % n
+        h = int.from_bytes(hash, byteorder='big', signed=False) % self.order
 
         return h
 
