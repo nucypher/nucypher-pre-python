@@ -181,7 +181,7 @@ class PRE(object):
         v1 = v ** rk.key
 
         # Check after performing the operations to avoid timing oracles
-        assert self.g ** s == v * (e ** h)
+        assert self.g ** s == v * (e ** h), "Generic Umbral Error"
 
         return ReEncryptedKey(ekey=e1, vcomp=v1, re_id=rk.id)
 
@@ -227,7 +227,7 @@ class PRE(object):
 
         inv_b = ~priv_key
 
-        assert orig_pk ** (s * inv_b) == v1 * (e1 ** h)
+        assert orig_pk ** (s * inv_b) == v1 * (e1 ** h), "Generic Umbral Error"
 
         return key
 
