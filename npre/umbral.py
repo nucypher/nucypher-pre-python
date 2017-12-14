@@ -26,6 +26,7 @@ from cryptography.hazmat.backends import default_backend
 EncryptedKey = namedtuple('EncryptedKey', ['ekey', 'vcomp', 'scomp'])
 ReEncryptedKey = namedtuple('ReEncryptedKey', ['ekey', 'vcomp', 're_id'])
 ReCombined = namedtuple('ReCombined', ['ekey', 'vcomp'])
+ChallengeResponse = namedtuple('ChallengeResponse', ['ekey', 'vcomp', 'ucomp','mcomp'])
 
 RekeyFrag = namedtuple('RekeyFrag', ['id', 'key'])
 
@@ -84,7 +85,6 @@ class PRE(object):
         return h
 
     def gen_priv(self, dtype='ec'):
-        # Same as in BBS98
         priv = ec.random(self.ecgroup, ec.ZR)
         return priv
 
@@ -95,7 +95,6 @@ class PRE(object):
 
         Returns a public key matching the type of priv.
         """
-        # Same as in BBS98
         pub = self.g ** priv
         return pub
 
@@ -184,6 +183,28 @@ class PRE(object):
         assert self.g ** s == v * (e ** h), "Generic Umbral Error"
 
         return ReEncryptedKey(ekey=e1, vcomp=v1, re_id=rk.id)
+
+    def reencryption_challenge(self, rk, encrypted_key):
+
+        e = encrypted_key.ekey
+        v = encrypted_key.vcomp
+
+        e1 = e ** rk.key
+        v1 = v ** rk.key
+
+        # TODO: change this!
+        u = self.g ** rk.key
+
+        t = ec.random(self.ecgroup, ec.ZR)
+        e_t = e ** t
+        v_t = v ** t
+        u_t = self.g ** t
+
+        h = self.hash_points_to_bn([e, e1, e_t, v, v1, v_t, self.g, u, u_t])
+
+        m = t + h*rk.key
+
+        return ChallengeResponse(ekey=e_t, vcomp=v_t, ucomp=u_t, mcomp=m)
 
     def encapsulate(self, pub_key, key_length=32):
         """Generare an ephemeral key pair and symmetric key"""
