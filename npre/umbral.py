@@ -24,11 +24,11 @@ from cryptography.hazmat.backends import default_backend
 
 
 EncryptedKey = namedtuple('EncryptedKey', ['ekey', 'vcomp', 'scomp'])
-ReEncryptedKey = namedtuple('ReEncryptedKey', ['ekey', 'vcomp', 're_id'])
-ReCombined = namedtuple('ReCombined', ['ekey', 'vcomp'])
-ChallengeResponse = namedtuple('ChallengeResponse', ['ekey', 'vcomp', 'ucomp','mcomp'])
+ReEncryptedKey = namedtuple('ReEncryptedKey', ['ekey', 'vcomp', 're_id', 'xcomp'])
+ReCombined = namedtuple('ReCombined', ['ekey', 'vcomp', 'xcomp', 'u1', 'z1', 'z2'])
+ChallengeResponse = namedtuple('ChallengeResponse', ['e2', 'v2', 'u1', 'u2', 'z1', 'z2', 'z3'])
 
-RekeyFrag = namedtuple('RekeyFrag', ['id', 'key'])
+RekeyFrag = namedtuple('RekeyFrag', ['id', 'key', 'xcomp', 'u1', 'z1', 'z2'])
 
 
 def lambda_coeff(id_i, selected_ids):
@@ -109,24 +109,36 @@ class PRE(object):
         # Same as in BBS98
         return ec.serialize(key)
 
-    def rekey(self, priv1, priv2, dtype=None):
-        # Same as in BBS98
-        rk = priv1 * (~priv2)
-        return RekeyFrag(id=None, key=rk)
+    def split_rekey(self, priv_a, pub_b, threshold, N):
 
-    def split_rekey(self, priv_a, priv_b, threshold, N):
-        coeffs = [priv_a * (~priv_b)]  # Standard rekey
+        x = ec.random(self.ecgroup, ec.ZR)
+        xcomp = self.g ** x
+        d = self.hash_points_to_bn([xcomp, pub_b, pub_b ** x])
+        # print([xcomp, pub_b, pub_b ** x])
+        # print(d)
+
+        coeffs = [priv_a * (~d)]  # Standard rekey
         coeffs += [ec.random(self.ecgroup, ec.ZR) for _ in range(threshold - 1)]
 
-        # TODO: change this!
+        # TODO: change this into public parameters different than g
         h = self.g
+        u = self.g
 
         vKeys = [h ** coeff for coeff in coeffs]
 
-        ids = [ec.random(self.ecgroup, ec.ZR) for _ in range(N)]
-        rk_shares = [
-                RekeyFrag(id, key=poly_eval(coeffs, id))
-                for id in ids]
+        rk_shares = []
+        for _ in range(N):
+            id = ec.random(self.ecgroup, ec.ZR)
+            rk = poly_eval(coeffs, id)
+
+            u1 = u ** rk
+            y  = ec.random(self.ecgroup, ec.ZR)
+
+            z1 = self.hash_points_to_bn([xcomp, u1, self.g ** y])
+            z2 = y - priv_a * z1
+
+            kFrag = RekeyFrag(id=id, key=rk, xcomp=xcomp, u1=u1, z1=z1, z2=z2)
+            rk_shares.append(kFrag)
 
         return rk_shares, vKeys
 
@@ -152,24 +164,26 @@ class PRE(object):
         return lh_exp == rh_exp
 
     def combine(self, reencrypted_keys):
-        x0 = reencrypted_keys[0]
+        re0, ch0 = reencrypted_keys[0]
         
         if len(reencrypted_keys) > 1:
-            ids = [x.re_id for x in reencrypted_keys]
-            lambda_0 = lambda_coeff(x0.re_id, ids)
-            e = x0.ekey ** lambda_0
-            v = x0.vcomp ** lambda_0
-            for x in reencrypted_keys[1:]:
-                lambda_i = lambda_coeff(x.re_id, ids)
-                e = e * (x.ekey  ** lambda_i)
-                v = v * (x.vcomp ** lambda_i)
+            ids = [re.re_id for re,_ in reencrypted_keys]
+            lambda_0 = lambda_coeff(re0.re_id, ids)
+            e = re0.ekey ** lambda_0
+            v = re0.vcomp ** lambda_0
+            for re,_ in reencrypted_keys[1:]:
+                lambda_i = lambda_coeff(re.re_id, ids)
+                e = e * (re.ekey  ** lambda_i)
+                v = v * (re.vcomp ** lambda_i)
 
-            return ReCombined(ekey=e, vcomp=v)
+            return ReCombined(ekey=e, vcomp=v, xcomp=re0.xcomp, u1=ch0.u1, z1=ch0.z1, z2=ch0.z2)
 
         else: #if len(reencrypted_keys) == 1:
-            return ReCombined(ekey=x0.ekey, vcomp=x0.vcomp)
+            return ReCombined(ekey=re0.ekey, vcomp=re0.vcomp, xcomp=re0.xcomp, u1=ch0.u1, z1=ch0.z1, z2=ch0.z2)
 
     def reencrypt(self, rk, encrypted_key):
+
+        ## ReEncryption:
 
         e = encrypted_key.ekey
         v = encrypted_key.vcomp
@@ -182,29 +196,69 @@ class PRE(object):
         # Check after performing the operations to avoid timing oracles
         assert self.g ** s == v * (e ** h), "Generic Umbral Error"
 
-        return ReEncryptedKey(ekey=e1, vcomp=v1, re_id=rk.id)
+        reenc = ReEncryptedKey(ekey=e1, vcomp=v1, re_id=rk.id, xcomp=rk.xcomp)
 
-    def reencryption_challenge(self, rk, encrypted_key):
+        ## Challenge:
 
-        e = encrypted_key.ekey
-        v = encrypted_key.vcomp
-
-        e1 = e ** rk.key
-        v1 = v ** rk.key
-
-        # TODO: change this!
-        u = self.g ** rk.key
+        # TODO: change this into a public parameter different than g
+        u = self.g
+        u1 = rk.u1
 
         t = ec.random(self.ecgroup, ec.ZR)
         e_t = e ** t
         v_t = v ** t
-        u_t = self.g ** t
+        u_t = u ** t
 
-        h = self.hash_points_to_bn([e, e1, e_t, v, v1, v_t, self.g, u, u_t])
+        h = self.hash_points_to_bn([e, e1, e_t, v, v1, v_t, u, u1, u_t])
+        print(h)
+        # print("REENCRYPT")
+        # for jarl in [e, e1, e_t, v, v1, v_t, u, u1, u_t]:
+        #     print(jarl)
+        # print("")
 
-        m = t + h*rk.key
+        z3 = t + h*rk.key
 
-        return ChallengeResponse(ekey=e_t, vcomp=v_t, ucomp=u_t, mcomp=m)
+        ch_resp = ChallengeResponse(e2=e_t, v2=v_t, u1=u1, u2=u_t, z1=rk.z1, z2=rk.z2, z3=z3)
+        return reenc, ch_resp
+
+    def check_challenge(self, encrypted_key, reencrypted_key, challenge_resp, pub_a):
+        e = encrypted_key.ekey
+        v = encrypted_key.vcomp
+        
+
+        e1 = reencrypted_key.ekey
+        v1 = reencrypted_key.vcomp
+        xcomp = reencrypted_key.xcomp
+
+        e2 = challenge_resp.e2
+        v2 = challenge_resp.v2
+
+        # TODO: change this into a public parameter different than g
+        u = self.g
+        u1 = challenge_resp.u1
+        u2 = challenge_resp.u2
+
+        z1 = challenge_resp.z1
+        z2 = challenge_resp.z2
+        z3 = challenge_resp.z3
+
+        ycomp = (self.g ** z2) * (pub_a ** z1)
+
+        h = self.hash_points_to_bn([e, e1, e2, v, v1, v2, u, u1, u2])
+        print(h)
+        # print("ch")
+        # for jarl in [e, e1, e2, v, v1, v2, u, u1, u2]:
+        #     print(jarl)
+        # print("")
+        check31 = z1 == self.hash_points_to_bn([xcomp, u1, ycomp])
+        check32 = e ** z3 == e2 * (e1 ** h)
+        check33 = u ** z3 == u2 * (u1 ** h)
+
+        assert check31
+        assert check32
+        assert check33
+
+        return check31 & check32 & check33
 
     def encapsulate(self, pub_key, key_length=32):
         """Generare an ephemeral key pair and symmetric key"""
@@ -232,23 +286,23 @@ class PRE(object):
         key = self.kdf(shared_key, key_length)
         return key
 
-    def decapsulate_reencrypted(self, priv_key, reencrypted_key, orig_pk, orig_encrypted_key, key_length=32):
+    def decapsulate_reencrypted(self, pub_key, priv_key, recombined_key, orig_pk, orig_encrypted_key, key_length=32):
         """Derive the same symmetric key"""
 
-        e1 = reencrypted_key.ekey
-        v1 = reencrypted_key.vcomp
-
-        shared_key = e1 ** priv_key
+        xcomp = recombined_key.xcomp
+        d = self.hash_points_to_bn([xcomp, pub_key, xcomp ** priv_key])
+        print([xcomp, pub_key, xcomp ** priv_key])
+        print(d)
+        e1 = recombined_key.ekey
+        
+        shared_key = e1 ** d
         key = self.kdf(shared_key, key_length)
 
-        e = orig_encrypted_key.ekey
-        v = orig_encrypted_key.vcomp
-        s = orig_encrypted_key.scomp
-        h = self.hash_points_to_bn([e, v])
-
-        inv_b = ~priv_key
-
-        assert orig_pk ** (s * inv_b) == v1 * (e1 ** h), "Generic Umbral Error"
+        #v1 = recombined_key.vcomp
+        #s = orig_encrypted_key.scomp
+        #h = self.hash_points_to_bn([e, v])
+        #inv_d = ~d
+        #assert orig_pk ** (s * inv_d) == v1 * (e1 ** h), "Generic Umbral Error"
 
         return key
 
