@@ -291,8 +291,7 @@ class PRE(object):
 
         xcomp = recombined_key.xcomp
         d = self.hash_points_to_bn([xcomp, pub_key, xcomp ** priv_key])
-        print([xcomp, pub_key, xcomp ** priv_key])
-        print(d)
+
         e1 = recombined_key.ekey
         
         shared_key = e1 ** d
