@@ -272,8 +272,7 @@ class PRE(object):
         h = self.hash_points_to_bn([pub_r, pub_u])
         s = priv_u + priv_r * h
 
-        # DH between eph_private_key and public_key
-        shared_key = pub_key ** priv_r
+        shared_key = pub_key ** (priv_r + priv_u)
 
         # Key to be used for symmetric encryption
         key = self.kdf(shared_key, key_length)
@@ -282,7 +281,8 @@ class PRE(object):
 
     def decapsulate_original(self, priv_key, encrypted_key, key_length=32):
         """Derive the same symmetric key"""
-        shared_key = encrypted_key.ekey ** priv_key
+        #shared_key = (encrypted_key.ekey) ** priv_key
+        shared_key = (encrypted_key.ekey * encrypted_key.vcomp) ** priv_key
         key = self.kdf(shared_key, key_length)
         return key
 
@@ -293,8 +293,9 @@ class PRE(object):
         d = self.hash_points_to_bn([xcomp, pub_key, xcomp ** priv_key])
 
         e1 = recombined_key.ekey
+        v1 = recombined_key.vcomp
         
-        shared_key = e1 ** d
+        shared_key = (e1 * v1) ** d
         key = self.kdf(shared_key, key_length)
 
         #v1 = recombined_key.vcomp
