@@ -251,17 +251,10 @@ class PRE(object):
 
         h = self.hash_points_to_bn([e, e1, e2, v, v1, v2, u, u1, u2])
         print(h)
-        # print("ch")
-        # for jarl in [e, e1, e2, v, v1, v2, u, u1, u2]:
-        #     print(jarl)
-        # print("")
+
         check31 = z1 == self.hash_points_to_bn([xcomp, u1, ycomp, re_id])
         check32 = e ** z3 == e2 * (e1 ** h)
         check33 = u ** z3 == u2 * (u1 ** h)
-
-        #assert check31
-        #assert check32
-        #assert check33
 
         return check31 & check32 & check33
 
