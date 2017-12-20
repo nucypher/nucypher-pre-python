@@ -183,22 +183,17 @@ class PRE(object):
 
     def reencrypt(self, rk, encrypted_key):
 
-        ## ReEncryption:
+        ## ReEncryption part:
 
         e = encrypted_key.ekey
         v = encrypted_key.vcomp
-        s = encrypted_key.scomp
-        h = self.hash_points_to_bn([e, v])
 
         e1 = e ** rk.key
         v1 = v ** rk.key
 
-        # Check after performing the operations to avoid timing oracles
-        assert self.g ** s == v * (e ** h), "Generic Umbral Error"
-
         reenc = ReEncryptedKey(ekey=e1, vcomp=v1, re_id=rk.id, xcomp=rk.xcomp)
 
-        ## Challenge:
+        ## Challenge part:
 
         # TODO: change this into a public parameter different than g
         u = self.g
@@ -211,15 +206,24 @@ class PRE(object):
 
         h = self.hash_points_to_bn([e, e1, e_t, v, v1, v_t, u, u1, u_t])
         print(h)
-        # print("REENCRYPT")
-        # for jarl in [e, e1, e_t, v, v1, v_t, u, u1, u_t]:
-        #     print(jarl)
-        # print("")
 
         z3 = t + h*rk.key
 
         ch_resp = ChallengeResponse(e2=e_t, v2=v_t, u1=u1, u2=u_t, z1=rk.z1, z2=rk.z2, z3=z3)
+
+        # Check correctness of original ciphertext (check nº 2) at the end 
+        # to avoid timing oracles
+        assert self.check_original(encrypted_key), "Generic Umbral Error"
         return reenc, ch_resp
+
+    def check_original(self, encrypted_key):
+
+        e = encrypted_key.ekey
+        v = encrypted_key.vcomp
+        s = encrypted_key.scomp
+        h = self.hash_points_to_bn([e, v])
+
+        return self.g ** s == v * (e ** h)
 
     def check_challenge(self, encrypted_key, reencrypted_key, challenge_resp, pub_a):
         e = encrypted_key.ekey
@@ -284,6 +288,10 @@ class PRE(object):
 
         shared_key = (encrypted_key.ekey * encrypted_key.vcomp) ** priv_key
         key = self.kdf(shared_key, key_length)
+
+        # Check correctness of original ciphertext (check nº 2) at the end 
+        # to avoid timing oracles
+        assert self.check_original(encrypted_key), "Generic Umbral Error"
         return key
 
     def decapsulate_reencrypted(self, pub_key, priv_key, recombined_key, orig_pk, orig_encrypted_key, key_length=32):
