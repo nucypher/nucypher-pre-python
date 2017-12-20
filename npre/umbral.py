@@ -254,9 +254,9 @@ class PRE(object):
         check32 = e ** z3 == e2 * (e1 ** h)
         check33 = u ** z3 == u2 * (u1 ** h)
 
-        assert check31
-        assert check32
-        assert check33
+        #assert check31
+        #assert check32
+        #assert check33
 
         return check31 & check32 & check33
 
@@ -281,7 +281,7 @@ class PRE(object):
 
     def decapsulate_original(self, priv_key, encrypted_key, key_length=32):
         """Derive the same symmetric key"""
-        #shared_key = (encrypted_key.ekey) ** priv_key
+
         shared_key = (encrypted_key.ekey * encrypted_key.vcomp) ** priv_key
         key = self.kdf(shared_key, key_length)
         return key
@@ -298,11 +298,12 @@ class PRE(object):
         shared_key = (e1 * v1) ** d
         key = self.kdf(shared_key, key_length)
 
-        #v1 = recombined_key.vcomp
-        #s = orig_encrypted_key.scomp
-        #h = self.hash_points_to_bn([e, v])
-        #inv_d = ~d
-        #assert orig_pk ** (s * inv_d) == v1 * (e1 ** h), "Generic Umbral Error"
+        e = orig_encrypted_key.ekey
+        v = orig_encrypted_key.vcomp
+        s = orig_encrypted_key.scomp
+        h = self.hash_points_to_bn([e, v])
+        inv_d = ~d
+        assert orig_pk ** (s * inv_d) == v1 * (e1 ** h), "Generic Umbral Error"
 
         return key
 
