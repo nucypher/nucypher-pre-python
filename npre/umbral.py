@@ -134,7 +134,7 @@ class PRE(object):
             u1 = u ** rk
             y  = ec.random(self.ecgroup, ec.ZR)
 
-            z1 = self.hash_points_to_bn([xcomp, u1, self.g ** y])
+            z1 = self.hash_points_to_bn([xcomp, u1, self.g ** y, id])
             z2 = y - priv_a * z1
 
             kFrag = RekeyFrag(id=id, key=rk, xcomp=xcomp, u1=u1, z1=z1, z2=z2)
@@ -233,6 +233,7 @@ class PRE(object):
         e1 = reencrypted_key.ekey
         v1 = reencrypted_key.vcomp
         xcomp = reencrypted_key.xcomp
+        re_id = reencrypted_key.re_id
 
         e2 = challenge_resp.e2
         v2 = challenge_resp.v2
@@ -254,7 +255,7 @@ class PRE(object):
         # for jarl in [e, e1, e2, v, v1, v2, u, u1, u2]:
         #     print(jarl)
         # print("")
-        check31 = z1 == self.hash_points_to_bn([xcomp, u1, ycomp])
+        check31 = z1 == self.hash_points_to_bn([xcomp, u1, ycomp, re_id])
         check32 = e ** z3 == e2 * (e1 ** h)
         check33 = u ** z3 == u2 * (u1 ** h)
 
