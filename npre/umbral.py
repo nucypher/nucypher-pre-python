@@ -79,10 +79,19 @@ class PRE(object):
         digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
         for point in list:
             digest.update(ec.serialize(point))
-        hash = digest.finalize()
-        h = int.from_bytes(hash, byteorder='big', signed=False) % self.order
 
-        return h
+        # minVal = (1 << 256) % self.order   (i.e., 2^256 % order)
+        minVal = 432420386565659656852420866394968145599
+        i = 0
+        h = 0
+        while h < minVal:
+            digest_i = digest.copy()
+            digest_i.update(i.to_bytes(32, byteorder='big'))
+            hash = digest_i.finalize()
+            h = int.from_bytes(hash, byteorder='big', signed=False)
+            i += 1
+
+        return h % self.order
 
     def gen_priv(self, dtype='ec'):
         priv = ec.random(self.ecgroup, ec.ZR)
@@ -205,7 +214,6 @@ class PRE(object):
         u_t = u ** t
 
         h = self.hash_points_to_bn([e, e1, e_t, v, v1, v_t, u, u1, u_t])
-        print(h)
 
         z3 = t + h*rk.key
 
